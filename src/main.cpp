@@ -250,7 +250,7 @@ int main() {
           Vehicle trajectory = ego.choose_next_state(vehicles);
           double proposed_speed = trajectory.s_dot * CONVERT_FACTOR; // MPH
           lane = trajectory.lane;
-          double delta_v_test = trajectory.s_ddot * DT * CONVERT_FACTOR; // MPH
+          double delta_v = trajectory.s_ddot * DT * CONVERT_FACTOR; // MPH
 
           // cout << "Chosen state: " << trajectory.state << endl;
 
@@ -391,7 +391,7 @@ int main() {
           // points, here we will always output 50 points
           for (int i=1; i<= path_size-prev_size; ++i) {
 
-            ref_vel += delta_v_test;
+            ref_vel += delta_v;
 
             double N = (target_dist/(DT*ref_vel/CONVERT_FACTOR));
             double x_point = x_add_on + (target_x)/N;
