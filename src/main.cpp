@@ -135,20 +135,6 @@ int main() {
 
             double d = sensor_fusion[i][6];
 
-            int lane_other;
-            if (d >= 0 && d <= LANE_WIDTH)
-            {
-              lane_other = 0;
-            }
-            else if (d > LANE_WIDTH && d <= 2*LANE_WIDTH)
-            {
-              lane_other = 1;
-            }
-            else if (d > 2*LANE_WIDTH && d <= 3*LANE_WIDTH)
-            {
-              lane_other = 2;
-            }
-
             double pos = sensor_fusion[i][5];
 
             double x = sensor_fusion[i][1];
@@ -163,25 +149,12 @@ int main() {
 
             pos += prev_size*DT*v;
 
-            other_v = Vehicle(pos, v, accel, lane_other, "CS");
+            other_v = Vehicle(pos, v, accel, d, "CS");
 
             vehicles.push_back(other_v);
           }
 
-          int lane;
-          if (end_path_d >= 0 && end_path_d <= LANE_WIDTH)
-          {
-            lane = 0;
-          }
-          else if (end_path_d > LANE_WIDTH && end_path_d <= 2*LANE_WIDTH)
-          {
-            lane = 1;
-          }
-          else if (end_path_d > 2*LANE_WIDTH && end_path_d <= 3*LANE_WIDTH)
-          {
-            lane = 2;
-          }
-
+          double d = end_path_d;
           double pos = end_path_s;
           double v;
           double accel;
@@ -237,7 +210,7 @@ int main() {
           // Keep track of state of vehicle
           string state = "KL";
 
-          Vehicle ego = Vehicle(pos, v, accel, lane, state);
+          Vehicle ego = Vehicle(pos, v, accel, d, state);
 
           vector<double> vehicle_data;
           vehicle_data.push_back(buffer);
@@ -248,9 +221,9 @@ int main() {
           // cout << "Initial v: " << ref_vel << endl;
 
           Vehicle trajectory = ego.choose_next_state(vehicles);
-          double proposed_speed = trajectory.s_dot * CONVERT_FACTOR; // MPH
+          double proposed_speed = trajectory.start_state.s[1] * CONVERT_FACTOR; // MPH
           lane = trajectory.lane;
-          double delta_v = trajectory.s_ddot * DT * CONVERT_FACTOR; // MPH
+          double delta_v = trajectory.start_state.s[2] * DT * CONVERT_FACTOR; // MPH
 
           // cout << "Chosen state: " << trajectory.state << endl;
 
@@ -273,6 +246,27 @@ int main() {
           cout << "Final v: " << ref_vel << endl;
           cout << endl;
           */
+
+
+          vector<double> start_s(3);
+          start_s[0] = pos;
+          start_s[1] = v;
+          start_s[2] = accel;
+
+          vector<double> start_d(3);
+          start_d[0] = end_path_d;
+          start_d[1] = 0.0;
+          start_d[2] = 0.0;
+
+          vector<double> goal_state_s(3);
+          goal_state_s[0] = trajectory.s;
+          goal_state_s[1] = trajectory.s_dot;
+          goal_state_s[2] = trajectory.s_ddot;
+
+          vector<double> goal_state_d(3);
+          goal_state_d[0] = LANE_WIDTH/2.0 + LANE_WIDTH*trajectory.lane;
+          goal_state_d[1] = 0.0;
+          goal_state_d[2] = 0.0;
 
 
           // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m

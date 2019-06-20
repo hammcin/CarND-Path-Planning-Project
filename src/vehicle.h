@@ -15,12 +15,16 @@ public:
   // Constructor
   Vehicle();
 
-  Vehicle(double s, double s_dot, double s_ddot, int lane, string state);
+  Vehicle(double s, double s_dot, double s_ddot, double d, string state);
 
   // Destructor
   virtual ~Vehicle();
 
   // Vehicle functions
+  int frenet_to_lane(double d);
+
+  double lane_to_frenet(int lane);
+
   Vehicle choose_next_state(vector<Vehicle> &vehicles);
 
   // Provides the possible next states given the current state for the FSM.
@@ -58,9 +62,15 @@ public:
   void configure(vector<double> &data);
 
   // public Vehicle variables
-  map<string, int> lane_direction = {{"LCL", -1}, {"LCR", 1}};
+  struct frenet_coord
+  {
+    vector<double> s;
+    vector<double> d;
+  };
 
-  double s, s_dot, s_ddot;
+  frenet_coord start_state;
+
+  map<string, int> lane_direction = {{"LCL", -1}, {"LCR", 1}};
 
   int lane;
 

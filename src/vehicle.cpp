@@ -16,16 +16,49 @@ using std::endl;
 
 Vehicle::Vehicle(){}
 
-Vehicle::Vehicle(double s, double s_dot, double s_ddot, int lane, string state)
+Vehicle::Vehicle(double s, double s_dot, double s_ddot, double d, string state)
 {
-  this->s = s;
-  this->s_dot = s_dot;
-  this->s_ddot = s_ddot;
-  this->lane = lane;
+  vector<double> s_start;
+  s_start.push_back(s);
+  s_start.push_back(s_dot);
+  s_start.push_back(s_ddot);
+  this->start_state.s = s_start;
+
+  vector<double> d_start;
+  d_start.push_back(d);
+  d_start.push_back(0.0);
+  d_start.push_back(0.0);
+  this->start_state.d = d_start;
+
+  this->lane = frenet_to_lane(d);
+
   this->state = state;
 }
 
 Vehicle::~Vehicle(){}
+
+int Vehicle::frenet_to_lane(double d)
+{
+  int lane;
+  if (d >= 0 && d <= LANE_WIDTH)
+  {
+    lane = 0;
+  }
+  else if (d > LANE_WIDTH && d <= 2*LANE_WIDTH)
+  {
+    lane = 1;
+  }
+  else if (d > 2*LANE_WIDTH && d <= 3*LANE_WIDTH)
+  {
+    lane = 2;
+  }
+  return lane;
+}
+
+double Vehicle::lane_to_frenet(int lane)
+{
+  return LANE_WIDTH/2.0 + lane*LANE_WIDTH;
+}
 
 Vehicle Vehicle::choose_next_state(vector<Vehicle> &vehicles)
 {
@@ -62,7 +95,7 @@ Vehicle Vehicle::choose_next_state(vector<Vehicle> &vehicles)
   int best_idx = distance(begin(costs), best_cost);
 
   // cout << "Best cost: " << costs[best_idx] << endl;
-  cout << endl;
+  // cout << endl;
 
   return final_trajectories[best_idx];
 }
@@ -105,8 +138,10 @@ vector<Vehicle> Vehicle::generate_trajectory(string state,
 vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
 {
   double delta_t = this->project_size * DT;
-  double max_velocity_accel_limit = this->s_dot + MAX_ACCELERATION * delta_t;
-  double min_velocity_accel_limit = this->s_dot - MAX_ACCELERATION * delta_t;
+  double max_velocity_accel_limit = this->start_state.s[1]
+                                    + MAX_ACCELERATION * delta_t;
+  double min_velocity_accel_limit = this->start_state.s[1]
+                                    - MAX_ACCELERATION * delta_t;
   double new_position;
   double new_velocity;
   double new_accel;
@@ -117,7 +152,7 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
 
     // cout << "Vehicle in front" << endl;
 
-    if ((vehicle_ahead.s - this->s) <= this->buffer)
+    if ((vehicle_ahead.start_state.s[0] - this->start_state.s[0]) <= this->buffer)
     {
 
       // cout << "Vehicle in buffer region" << endl;
@@ -129,7 +164,7 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
       cout << "Speed limit v: " << this->target_speed << endl;
       */
 
-      double vehicle_ahead_v = vehicle_ahead.s_dot;
+      double vehicle_ahead_v = vehicle_ahead.start_state.s[1];
       if (vehicle_ahead_v > max_velocity_accel_limit)
       {
         vehicle_ahead_v = max_velocity_accel_limit;
@@ -159,13 +194,13 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
 
       // cout << "No vehicle in buffer region" << endl;
 
-      double max_accel_in_front = 2 * (vehicle_ahead.s
-                                     + vehicle_ahead.s_dot * delta_t
-                                     + vehicle_ahead.s_ddot * delta_t * delta_t / 2.0
-                                     - this->buffer - this->s
-                                     - this->s_dot * delta_t)
+      double max_accel_in_front = 2 * (vehicle_ahead.start_state.s[0]
+                                     + vehicle_ahead.start_state.s[1] * delta_t
+                                     + vehicle_ahead.start_state.s[2] * delta_t * delta_t / 2.0
+                                     - this->buffer - this->start_state.s[0]
+                                     - this->start_state.s[1] * delta_t)
                                      / (delta_t * delta_t);
-      double max_velocity_in_front = this->s_dot + max_accel_in_front * delta_t;
+      double max_velocity_in_front = this->start_state.s[1] + max_accel_in_front * delta_t;
 
       /*
       cout << "Max acceleration v: " << max_velocity_accel_limit << endl;
@@ -222,8 +257,8 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
     // cout << "Chosen v: " << new_velocity << endl;
   }
 
-  new_accel = (new_velocity - this->s_dot) / delta_t;
-  new_position = this->s + this->s_dot * delta_t
+  new_accel = (new_velocity - this->start_state.s[1]) / delta_t;
+  new_position = this->start_state.s[0] + this->start_state.s[1] * delta_t
                  + new_accel * delta_t * delta_t / 2.0;
 
   return {new_position, new_velocity, new_accel};
@@ -239,7 +274,7 @@ vector<Vehicle> Vehicle::keep_lane_trajectory(vector<Vehicle> &vehicles)
   double new_s = kinematics[0];
   double new_v = kinematics[1];
   double new_a = kinematics[2];
-  trajectory.push_back(Vehicle(new_s, new_v, new_a, this->lane, "KL"));
+  trajectory.push_back(Vehicle(new_s, new_v, new_a, lane_to_frenet(this->lane), "KL"));
 
   return trajectory;
 }
@@ -255,8 +290,8 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string lane_change_state,
   for (int i=0; i<vehicles.size(); ++i)
   {
     next_lane_vehicle = vehicles[i];
-    if (next_lane_vehicle.s >= (this->s - buffer)
-        && next_lane_vehicle.s <= (this->s + buffer)
+    if (next_lane_vehicle.start_state.s[0] >= (this->start_state.s[0] - buffer)
+        && next_lane_vehicle.start_state.s[0] <= (this->start_state.s[0] + buffer)
         && next_lane_vehicle.lane == new_lane)
         {
 
@@ -276,7 +311,7 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string lane_change_state,
 
   vector<double> kinematics = get_kinematics(vehicles, new_lane);
   trajectory.push_back(Vehicle(kinematics[0], kinematics[1], kinematics[2],
-                               new_lane, lane_change_state));
+                               lane_to_frenet(new_lane), lane_change_state));
 
   return trajectory;
 }
@@ -293,9 +328,9 @@ bool Vehicle::get_vehicle_ahead(vector<Vehicle> &vehicles, int new_lane,
     temp_vehicle = vehicles[i];
     if (temp_vehicle.lane == new_lane)
     {
-      double check_car_s = temp_vehicle.s;
+      double check_car_s = temp_vehicle.start_state.s[0];
 
-      if ((check_car_s>this->s) && (check_car_s<min_s))
+      if ((check_car_s>this->start_state.s[0]) && (check_car_s<min_s))
       {
         min_s = check_car_s;
         rVehicle = temp_vehicle;
@@ -318,9 +353,9 @@ bool Vehicle::get_vehicle_behind(vector<Vehicle> &vehicles, int new_lane,
     temp_vehicle = vehicles[i];
     if (temp_vehicle.lane == new_lane)
     {
-      double check_car_s = temp_vehicle.s;
+      double check_car_s = temp_vehicle.start_state.s[0];
 
-      if ((check_car_s<this->s) && (check_car_s>max_s_behind))
+      if ((check_car_s<this->start_state.s[0]) && (check_car_s>max_s_behind))
       {
         max_s_behind = check_car_s;
         rVehicle = temp_vehicle;

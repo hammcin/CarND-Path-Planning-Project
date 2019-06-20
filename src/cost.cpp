@@ -37,11 +37,11 @@ double lane_speed(Vehicle &vehicle, vector<Vehicle> &vehicles, int new_lane)
   {
     temp_vehicle = vehicles[i];
     if (temp_vehicle.lane == new_lane
-        && temp_vehicle.s > vehicle.s
-        && temp_vehicle.s < min_s)
+        && temp_vehicle.start_state.s[0] > vehicle.start_state.s[0]
+        && temp_vehicle.start_state.s[0] < min_s)
     {
-      min_s = temp_vehicle.s;
-      vehicle_speed = temp_vehicle.s_dot;
+      min_s = temp_vehicle.start_state.s[0];
+      vehicle_speed = temp_vehicle.start_state.s[1];
       found_vehicle = true;
     }
   }
