@@ -12,6 +12,7 @@
 #include "spline.h"
 #include "vehicle.h"
 #include "constants.h"
+#include "cost.h"
 
 // for convenience
 using nlohmann::json;
@@ -56,15 +57,15 @@ int main() {
   }
 
   // start in lane 1
-  // int lane = 1;
+  int lane = 1;
 
   // Have a reference velocity to target
-  double ref_vel = 0.0; // mph
+  double ref_vel = 0.0; // MPH
 
   // Keep track of state of vehicle
-  // string state = "KL";
+  string state = "KL";
 
-  h.onMessage([&ref_vel,&map_waypoints_x,&map_waypoints_y,
+  h.onMessage([&lane,&state,&ref_vel,&map_waypoints_x,&map_waypoints_y,
                &map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
@@ -105,20 +106,27 @@ int main() {
           // Length of previous path
           int prev_size = previous_path_x.size();
 
+          // Prefer center lane
+          int goal_lane = 1;
+
           // Total size of the path
           int path_size = 50;
 
           // Number of points to add to the previous path
-          int project_size = path_size - prev_size;
+          // int project_size = path_size - prev_size;
+          int project_size = 30;
 
           // closest distance to another vehicle
-          double buffer = 30; // meters?
+          double buffer = 20; // meters?
+
+          // Useful for generating trajectory
+          double project_dist = 30.0; // meters
 
           // Max change in reference velocity
           // double delta_v = MAX_ACCELERATION * DT * CONVERT_FACTOR; // MPH
 
           // Target speed
-          double target_speed = (SPEED_LIMIT - 5.0) / CONVERT_FACTOR; // m/s
+          double target_speed = (SPEED_LIMIT - 2.5) / CONVERT_FACTOR; // m/s
 
           // Use car position after it finishes its current path
           // instead of current car position
@@ -135,6 +143,20 @@ int main() {
 
             double d = sensor_fusion[i][6];
 
+            int other_lane;
+            if (d >= 0 && d <= LANE_WIDTH)
+            {
+              other_lane = 0;
+            }
+            else if (d > LANE_WIDTH && d <= 2*LANE_WIDTH)
+            {
+              other_lane = 1;
+            }
+            else if (d > 2*LANE_WIDTH && d <= 3*LANE_WIDTH)
+            {
+              other_lane = 2;
+            }
+
             double pos = sensor_fusion[i][5];
 
             double x = sensor_fusion[i][1];
@@ -149,7 +171,7 @@ int main() {
 
             pos += prev_size*DT*v;
 
-            other_v = Vehicle(pos, v, accel, d, "CS");
+            other_v = Vehicle(pos, v, accel, d, other_lane, "CS");
 
             vehicles.push_back(other_v);
           }
@@ -208,28 +230,35 @@ int main() {
 
 
           // Keep track of state of vehicle
-          string state = "KL";
+          // string state = "KL";
 
-          Vehicle ego = Vehicle(pos, v, accel, d, state);
+          Vehicle ego = Vehicle(pos, v, accel, d, lane, state);
 
           vector<double> vehicle_data;
           vehicle_data.push_back(buffer);
           vehicle_data.push_back(target_speed);
           vehicle_data.push_back(project_size);
+          vehicle_data.push_back(goal_lane);
           ego.configure(vehicle_data);
 
-          // cout << "Initial v: " << ref_vel << endl;
+          cout << "===================" << endl;
+          cout << "Initial v: " << ref_vel << endl;
+          cout << "Initial state: " << state << endl;
+          cout << "Initial lane: " << lane << endl;
 
-          Vehicle trajectory = ego.choose_next_state(vehicles);
-          double proposed_speed = trajectory.start_state.s[1] * CONVERT_FACTOR; // MPH
-          lane = trajectory.lane;
-          double delta_v = trajectory.start_state.s[2] * DT * CONVERT_FACTOR; // MPH
+          Vehicle end_trajectory = ego.choose_next_state(vehicles);
+          double proposed_speed = end_trajectory.start_state.s[1] * CONVERT_FACTOR; // MPH
+          double delta_v = end_trajectory.start_state.s[2] * DT * CONVERT_FACTOR; // MPH
+          lane = end_trajectory.lane;
+          state = end_trajectory.state;
 
-          // cout << "Chosen state: " << trajectory.state << endl;
+          cout << "Chosen state: " << end_trajectory.state << endl;
+          cout << "Chosen lane: " << lane << endl;
 
-          /*
+
           cout << "Proposed speed: " << proposed_speed << endl;
-          cout << "Delta velocity: " << delta_v_test << endl;
+          cout << "Delta velocity: " << delta_v << endl;
+          /*
           if (ref_vel > proposed_speed)
           {
             cout << "Delta velocity max: " << -1*delta_v << endl;
@@ -242,31 +271,20 @@ int main() {
           {
             cout << "Delta velocity max: " << 0 << endl;
           }
-
-          cout << "Final v: " << ref_vel << endl;
-          cout << endl;
           */
 
+          cout << "Final v: " << ref_vel << endl;
+          cout << "===================" << endl;
+          cout << endl;
 
-          vector<double> start_s(3);
-          start_s[0] = pos;
-          start_s[1] = v;
-          start_s[2] = accel;
 
-          vector<double> start_d(3);
-          start_d[0] = end_path_d;
-          start_d[1] = 0.0;
-          start_d[2] = 0.0;
+          /*
+          vector<Vehicle> trajectory;
+          trajectory.push_back(ego);
+          trajectory.push_back(end_trajectory);
 
-          vector<double> goal_state_s(3);
-          goal_state_s[0] = trajectory.s;
-          goal_state_s[1] = trajectory.s_dot;
-          goal_state_s[2] = trajectory.s_ddot;
-
-          vector<double> goal_state_d(3);
-          goal_state_d[0] = LANE_WIDTH/2.0 + LANE_WIDTH*trajectory.lane;
-          goal_state_d[1] = 0.0;
-          goal_state_d[2] = 0.0;
+          double t_proj = DT*project_size;
+          */
 
 
           // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
@@ -320,15 +338,15 @@ int main() {
 
           // In Frenet add evenly 30m spaced points ahead of the starting
           // reference
-          vector<double> next_wp0 = getXY(car_s+30,
+          vector<double> next_wp0 = getXY(car_s+project_dist,
                                           (LANE_WIDTH/2+LANE_WIDTH*lane),
                                           map_waypoints_s,map_waypoints_x,
                                           map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s+60,
+          vector<double> next_wp1 = getXY(car_s+2*project_dist,
                                           (LANE_WIDTH/2+LANE_WIDTH*lane),
                                           map_waypoints_s,map_waypoints_x,
                                           map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s+90,
+          vector<double> next_wp2 = getXY(car_s+3*project_dist,
                                           (LANE_WIDTH/2+LANE_WIDTH*lane),
                                           map_waypoints_s,map_waypoints_x,
                                           map_waypoints_y);
@@ -340,6 +358,9 @@ int main() {
           ptsy.push_back(next_wp0[1]);
           ptsy.push_back(next_wp1[1]);
           ptsy.push_back(next_wp2[1]);
+
+          // shift_ref_frame(ptsx, ptsy, ref_x, ref_y, ref_yaw);
+
 
           for (int i=0; i<ptsx.size(); ++i)
           {
@@ -355,6 +376,7 @@ int main() {
                        +shift_y*cos(new_angle-ref_yaw));
 
           }
+
 
           // create a spline
           tk::spline s;
@@ -373,13 +395,37 @@ int main() {
             next_y_vals.push_back(previous_path_y[i]);
           }
 
+          /*
+          double target_x = project_dist; // meters
+          double target_y = s(target_x); // meters
+          double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y)); // meters
+          vector<double> x_points = calc_spline_points(target_x, target_dist,
+                                                       path_size-prev_size,
+                                                       ref_vel, delta_v);
+
+          vector<double> y_points;
+          for (int i=0; i<x_points.size(); ++i)
+          {
+            y_points.push_back(s(x_points[i]));
+          }
+
+          inverse_shift_ref_frame(x_points, y_points, ref_x, ref_y, ref_yaw);
+
+          for (int i=0; i<x_points.size(); ++i)
+          {
+            next_x_vals.push_back(x_points[i]);
+            next_y_vals.push_back(y_points[i]);
+          }
+          */
+
+
           // Calculate how to break up spline points so that we travel at our
           // desired reference velocity
-          double target_x = 30.0;
-          double target_y = s(target_x);
-          double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y));
+          double target_x = project_dist; // meters
+          double target_y = s(target_x); // meters
+          double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y)); // meters
 
-          double x_add_on = 0;
+          double x_add_on = 0; // meters
 
           // Fill up the rest of our path planner after filling it with previous
           // points, here we will always output 50 points
@@ -388,8 +434,8 @@ int main() {
             ref_vel += delta_v;
 
             double N = (target_dist/(DT*ref_vel/CONVERT_FACTOR));
-            double x_point = x_add_on + (target_x)/N;
-            double y_point = s(x_point);
+            double x_point = x_add_on + (target_x)/N; // meters
+            double y_point = s(x_point); // meters
 
             x_add_on = x_point;
 
@@ -406,6 +452,7 @@ int main() {
             next_x_vals.push_back(x_point);
             next_y_vals.push_back(y_point);
           }
+
 
           json msgJson;
           msgJson["next_x"] = next_x_vals;

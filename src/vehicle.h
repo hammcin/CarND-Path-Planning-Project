@@ -15,7 +15,8 @@ public:
   // Constructor
   Vehicle();
 
-  Vehicle(double s, double s_dot, double s_ddot, double d, string state);
+  Vehicle(double s, double s_dot, double s_ddot, double d, int lane,
+          string state);
 
   // Destructor
   virtual ~Vehicle();
@@ -28,7 +29,7 @@ public:
   Vehicle choose_next_state(vector<Vehicle> &vehicles);
 
   // Provides the possible next states given the current state for the FSM.
-  vector<string> successor_states();
+  vector<string> successor_states(vector<Vehicle> &vehicles);
 
   // Given a possible next state, generate the appropriate trajectory to realize
   //   the next state.
@@ -43,9 +44,15 @@ public:
   // Generate a keep lane trajectory.
   vector<Vehicle> keep_lane_trajectory(vector<Vehicle> &vehicles);
 
+  // Generate a trajectory preparing for a lane change.
+  vector<Vehicle> prep_lane_change_trajectory(string prep_state,
+                                              vector<Vehicle> &vehicles);
+
   // Generate a lane change trajectory.
-  vector<Vehicle> lane_change_trajectory(string state,
-                                           vector<Vehicle> &vehicles);
+  vector<Vehicle> lane_change_trajectory(string lane_change_state,
+                                         vector<Vehicle> &vehicles);
+
+  Vehicle state_in(double t);
 
   // Returns a true if a vehicle is found ahead of the current vehicle, false
   //   otherwise.  The passed reference rVehicle is updated if a vehicle is
@@ -70,7 +77,8 @@ public:
 
   frenet_coord start_state;
 
-  map<string, int> lane_direction = {{"LCL", -1}, {"LCR", 1}};
+  map<string, int> lane_direction = {{"PLCL", -1}, {"LCL", -1},
+                                     {"LCR", 1}, {"PLCR", 1}};
 
   int lane;
 
@@ -79,7 +87,7 @@ public:
   // Ego vehicle variables
   double buffer;
   double target_speed;
-  int project_size;
+  int project_size, goal_lane;
 };
 
 #endif  // VEHICLE_H
