@@ -17,13 +17,20 @@ const double EFFICIENCY = 0.85;
 double goal_lane_cost(Vehicle &vehicle, vector<Vehicle> &vehicles,
                       Vehicle &trajectory)
 {
-  cout << "Intended lane: " << get_intended_lane(trajectory) << endl;
-  cout << "Final lane: " << trajectory.lane << endl;
+
+  if (VERBOSE)
+  {
+    cout << "Intended lane: " << get_intended_lane(trajectory) << endl;
+    cout << "Final lane: " << trajectory.lane << endl;
+  }
 
   double cost = (fabs(vehicle.goal_lane - get_intended_lane(trajectory))
                  + fabs(vehicle.goal_lane - trajectory.lane))/(LANES_AVAILABLE - 1);
 
-  cout << "Goal lane cost: " << cost << endl;
+  if (VERBOSE)
+  {
+    cout << "Goal lane cost: " << cost << endl;
+  }
 
   return cost;
 }
@@ -32,23 +39,35 @@ double inefficiency_cost(Vehicle &vehicle, vector<Vehicle> &vehicles,
                          Vehicle &trajectory)
 {
 
-  cout << "Intended lane: " << get_intended_lane(trajectory) << endl;
+  if (VERBOSE)
+  {
+    cout << "Intended lane: " << get_intended_lane(trajectory) << endl;
+  }
 
   double proposed_speed_intended = lane_speed(vehicle, vehicles,
                                               get_intended_lane(trajectory));
 
-  cout << "Intended lane speed: " << proposed_speed_intended << endl;
+  if (VERBOSE)
+  {
+    cout << "Intended lane speed: " << proposed_speed_intended << endl;
 
-  cout << "Final lane: " << trajectory.lane << endl;
+    cout << "Final lane: " << trajectory.lane << endl;
+  }
 
   double proposed_speed_final = lane_speed(vehicle, vehicles, trajectory.lane);
 
-  cout << "Final lane speed: " << proposed_speed_final << endl;
+  if (VERBOSE)
+  {
+    cout << "Final lane speed: " << proposed_speed_final << endl;
+  }
 
   double cost = (2.0*vehicle.target_speed - proposed_speed_intended
                  - proposed_speed_final) / vehicle.target_speed;
 
-  cout << "Inefficiency cost: " << cost << endl;
+  if (VERBOSE)
+  {
+    cout << "Inefficiency cost: " << cost << endl;
+  }
 
   return cost;
 }

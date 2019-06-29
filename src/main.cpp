@@ -117,7 +117,7 @@ int main() {
           int project_size = 30;
 
           // closest distance to another vehicle
-          double buffer = 20; // meters?
+          double buffer = 25; // meters?
 
           // Useful for generating trajectory
           double project_dist = 30.0; // meters
@@ -241,10 +241,13 @@ int main() {
           vehicle_data.push_back(goal_lane);
           ego.configure(vehicle_data);
 
-          cout << "===================" << endl;
-          cout << "Initial v: " << ref_vel << endl;
-          cout << "Initial state: " << state << endl;
-          cout << "Initial lane: " << lane << endl;
+          if (VERBOSE)
+          {
+            cout << "===================" << endl;
+            cout << "Initial v: " << ref_vel << endl;
+            cout << "Initial state: " << state << endl;
+            cout << "Initial lane: " << lane << endl;
+          }
 
           Vehicle end_trajectory = ego.choose_next_state(vehicles);
           double proposed_speed = end_trajectory.start_state.s[1] * CONVERT_FACTOR; // MPH
@@ -252,39 +255,16 @@ int main() {
           lane = end_trajectory.lane;
           state = end_trajectory.state;
 
-          cout << "Chosen state: " << end_trajectory.state << endl;
-          cout << "Chosen lane: " << lane << endl;
-
-
-          cout << "Proposed speed: " << proposed_speed << endl;
-          cout << "Delta velocity: " << delta_v << endl;
-          /*
-          if (ref_vel > proposed_speed)
+          if (VERBOSE)
           {
-            cout << "Delta velocity max: " << -1*delta_v << endl;
+            cout << "Chosen state: " << end_trajectory.state << endl;
+            cout << "Chosen lane: " << lane << endl;
+
+            cout << "Proposed speed: " << proposed_speed << endl;
+            cout << "Delta velocity: " << delta_v << endl;
+            cout << "===================" << endl;
+            cout << endl;
           }
-          else if (ref_vel <= (proposed_speed - delta_v))
-          {
-            cout << "Delta velocity max: " << delta_v << endl;
-          }
-          else
-          {
-            cout << "Delta velocity max: " << 0 << endl;
-          }
-          */
-
-          cout << "Final v: " << ref_vel << endl;
-          cout << "===================" << endl;
-          cout << endl;
-
-
-          /*
-          vector<Vehicle> trajectory;
-          trajectory.push_back(ego);
-          trajectory.push_back(end_trajectory);
-
-          double t_proj = DT*project_size;
-          */
 
 
           // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
@@ -394,29 +374,6 @@ int main() {
             next_x_vals.push_back(previous_path_x[i]);
             next_y_vals.push_back(previous_path_y[i]);
           }
-
-          /*
-          double target_x = project_dist; // meters
-          double target_y = s(target_x); // meters
-          double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y)); // meters
-          vector<double> x_points = calc_spline_points(target_x, target_dist,
-                                                       path_size-prev_size,
-                                                       ref_vel, delta_v);
-
-          vector<double> y_points;
-          for (int i=0; i<x_points.size(); ++i)
-          {
-            y_points.push_back(s(x_points[i]));
-          }
-
-          inverse_shift_ref_frame(x_points, y_points, ref_x, ref_y, ref_yaw);
-
-          for (int i=0; i<x_points.size(); ++i)
-          {
-            next_x_vals.push_back(x_points[i]);
-            next_y_vals.push_back(y_points[i]);
-          }
-          */
 
 
           // Calculate how to break up spline points so that we travel at our

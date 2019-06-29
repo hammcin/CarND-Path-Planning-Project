@@ -20,4 +20,11 @@ const double CONVERT_FACTOR = 2.24; // units (MPH divided by m/s)
 // Time interval between points
 const double DT = 0.02; // seconds
 
+// Debug information
+const bool VERBOSE = true;
+
+// How far can a vehicle be from the center of its lane if its not performing
+// a lane change
+const double DELTA_D_KEEP_LANE = 0.1;
+
 #endif  // CONSTANTS_H

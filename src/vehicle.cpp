@@ -65,9 +65,13 @@ double Vehicle::lane_to_frenet(int lane)
 
 Vehicle Vehicle::choose_next_state(vector<Vehicle> &vehicles)
 {
-  cout << "=================" << endl;
-  cout << "Choose Next State" << endl;
-  cout << "=================" << endl;
+
+  if (VERBOSE)
+  {
+    cout << "=================" << endl;
+    cout << "Choose Next State" << endl;
+    cout << "=================" << endl;
+  }
 
   vector<string> states = successor_states(vehicles);
   double cost;
@@ -80,20 +84,29 @@ Vehicle Vehicle::choose_next_state(vector<Vehicle> &vehicles)
     if (trajectory.size() != 0)
     {
 
-      cout << "State: " << *it << endl;
+      if (VERBOSE)
+      {
+        cout << "State: " << *it << endl;
+      }
 
       cost = behavior_cost(*this, vehicles, trajectory[0]);
       costs.push_back(cost);
       final_trajectories.push_back(trajectory[0]);
 
-      cout << "Total cost: " << cost << endl;
+      if (VERBOSE)
+      {
+        cout << "Total cost: " << cost << endl;
+      }
     }
   }
 
   vector<double>::iterator best_cost = min_element(begin(costs), end(costs));
   int best_idx = distance(begin(costs), best_cost);
 
-  cout << "Best cost: " << costs[best_idx] << endl;
+  if (VERBOSE)
+  {
+    cout << "Best cost: " << costs[best_idx] << endl;
+  }
 
   return final_trajectories[best_idx];
 }
@@ -107,8 +120,12 @@ vector<string> Vehicle::successor_states(vector<Vehicle> &vehicles)
   {
     curr_lane_ahead_v = vehicle_ahead.start_state.s[1];
 
-    cout << "Vehicle ahead" << endl;
-    cout << "Vehicle ahead velocity: " << curr_lane_ahead_v << endl;
+    if (VERBOSE)
+    {
+      cout << "Vehicle ahead" << endl;
+      cout << "Vehicle ahead velocity: " << curr_lane_ahead_v << endl;
+    }
+
   }
 
   Vehicle vehicle_behind;
@@ -118,8 +135,11 @@ vector<string> Vehicle::successor_states(vector<Vehicle> &vehicles)
   {
     curr_lane_behind_v = vehicle_behind.start_state.s[1];
 
-    cout << "Vehicle behind" << endl;
-    cout << "Vehicle behind velocity: " << curr_lane_behind_v << endl;
+    if (VERBOSE)
+    {
+      cout << "Vehicle behind" << endl;
+      cout << "Vehicle behind velocity: " << curr_lane_behind_v << endl;
+    }
   }
 
   int new_lane;
@@ -129,13 +149,21 @@ vector<string> Vehicle::successor_states(vector<Vehicle> &vehicles)
 
   double d_diff = fabs(this->start_state.d[0] - lane_to_frenet(this->lane));
 
-  cout << "Distance from center of lane: " << d_diff << endl;
-  bool d_diff_test = d_diff < 0.2;
-  cout << "Distance from center of lane less than: " << d_diff_test << endl;
+  if (VERBOSE)
+  {
+    cout << "Distance from center of lane: " << d_diff << endl;
+  }
+
+  bool d_diff_test = d_diff < DELTA_D_KEEP_LANE;
+
+  if (VERBOSE)
+  {
+    cout << "Distance from center of lane less than: " << d_diff_test << endl;
+  }
 
   if (state.compare("LCL") == 0)
   {
-    if (d_diff < 0.2)
+    if (d_diff < DELTA_D_KEEP_LANE)
     {
       states.push_back("KL");
     }
@@ -147,7 +175,7 @@ vector<string> Vehicle::successor_states(vector<Vehicle> &vehicles)
   }
   else if (state.compare("LCR") == 0)
   {
-    if (d_diff < 0.2)
+    if (d_diff < DELTA_D_KEEP_LANE)
     {
       states.push_back("KL");
     }
@@ -184,8 +212,12 @@ vector<string> Vehicle::successor_states(vector<Vehicle> &vehicles)
     {
       next_lane_v = closest_vehicle.start_state.s[1];
 
-      cout << "Found vehicle in next lane" << endl;
-      cout << "Next lane vehicle speed: " << next_lane_v << endl;
+      if (VERBOSE)
+      {
+        cout << "Found vehicle in next lane" << endl;
+        cout << "Next lane vehicle speed: " << next_lane_v << endl;
+      }
+
     }
 
     if (this->lane != 0)
@@ -225,8 +257,12 @@ vector<string> Vehicle::successor_states(vector<Vehicle> &vehicles)
     {
       next_lane_v = closest_vehicle.start_state.s[1];
 
-      cout << "Found vehicle in next lane" << endl;
-      cout << "Next lane vehicle speed: " << next_lane_v << endl;
+      if (VERBOSE)
+      {
+        cout << "Found vehicle in next lane" << endl;
+        cout << "Next lane vehicle speed: " << next_lane_v << endl;
+      }
+
     }
 
     if (this->lane != LANES_AVAILABLE - 1)
@@ -290,32 +326,60 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
   double new_velocity;
   double new_accel;
   Vehicle vehicle_ahead;
+  Vehicle vehicle_behind;
 
   if (get_vehicle_ahead(vehicles, new_lane, vehicle_ahead))
   {
 
-    cout << "Vehicle in front" << endl;
+    if (VERBOSE)
+    {
+      cout << "Vehicle in front" << endl;
+    }
 
     if ((vehicle_ahead.start_state.s[0] - this->start_state.s[0]) <= this->buffer)
     {
 
-      cout << "Vehicle in buffer region" << endl;
-
-
-      cout << "Max acceleration v: " << max_velocity_accel_limit << endl;
-      cout << "Max deceleration v: " << min_velocity_accel_limit << endl;
-      cout << "Vehicle in front v: " << vehicle_ahead.start_state.s[1] << endl;
-      cout << "Speed limit v: " << this->target_speed << endl;
-
-
-      double vehicle_ahead_v = vehicle_ahead.start_state.s[1];
-      if (vehicle_ahead_v > max_velocity_accel_limit)
+      if (VERBOSE)
       {
-        vehicle_ahead_v = max_velocity_accel_limit;
+        cout << "Vehicle in buffer region" << endl;
+
+        cout << "Max acceleration v: " << max_velocity_accel_limit << endl;
+        cout << "Max deceleration v: " << min_velocity_accel_limit << endl;
+        cout << "Speed limit v: " << this->target_speed << endl;
+
+        cout << "Vehicle ahead position: " << vehicle_ahead.start_state.s[0] << endl;
+        cout << "Vehicle ahead velocity: " << vehicle_ahead.start_state.s[1] << endl;
+        cout << "Vehicle ahead acceleration: " << vehicle_ahead.start_state.s[2] << endl;
+
+        cout << "Ego vehicle position: " << this->start_state.s[0] << endl;
+        cout << "Ego vehicle velocity: " << this->start_state.s[1] << endl;
+        cout << "Ego vehicle acceleration: " << this->start_state.s[2] << endl;
+
+        cout << "Buffer: " << this->buffer << endl;
+        cout << "Delta t: " << delta_t << endl;
       }
-      else if (vehicle_ahead_v < min_velocity_accel_limit)
+
+
+      double max_accel_in_front = 2 * (vehicle_ahead.start_state.s[0]
+                                   + vehicle_ahead.start_state.s[1] * delta_t
+                                   + vehicle_ahead.start_state.s[2] * delta_t * delta_t / 2.0
+                                   - this->buffer - this->start_state.s[0]
+                                   - this->start_state.s[1] * delta_t)
+                                   / (delta_t * delta_t);
+      double max_velocity_in_front = this->start_state.s[1] + max_accel_in_front * delta_t;
+
+      if (VERBOSE)
       {
-        vehicle_ahead_v = min_velocity_accel_limit;
+        cout << "Max in front v: " << max_velocity_in_front << endl;
+      }
+
+      if (max_velocity_in_front > max_velocity_accel_limit)
+      {
+        max_velocity_in_front = max_velocity_accel_limit;
+      }
+      else if (max_velocity_in_front < min_velocity_accel_limit)
+      {
+        max_velocity_in_front = min_velocity_accel_limit;
       }
 
       double speed_limit_v = this->target_speed;
@@ -328,15 +392,21 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
         speed_limit_v = min_velocity_accel_limit;
       }
 
-      new_velocity = std::min(vehicle_ahead_v, speed_limit_v);
+      new_velocity = std::min(max_velocity_in_front, speed_limit_v);
 
-      cout << "Chosen v: " << new_velocity << endl;
+      if (VERBOSE)
+      {
+        cout << "Chosen v: " << new_velocity << endl;
+      }
 
     }
     else
     {
 
-      cout << "No vehicle in buffer region" << endl;
+      if (VERBOSE)
+      {
+        cout << "No vehicle in buffer region" << endl;
+      }
 
       double max_accel_in_front = 2 * (vehicle_ahead.start_state.s[0]
                                      + vehicle_ahead.start_state.s[1] * delta_t
@@ -346,11 +416,13 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
                                      / (delta_t * delta_t);
       double max_velocity_in_front = this->start_state.s[1] + max_accel_in_front * delta_t;
 
-
-      cout << "Max acceleration v: " << max_velocity_accel_limit << endl;
-      cout << "Max deceleration v: " << min_velocity_accel_limit << endl;
-      cout << "Max in front v: " << max_velocity_in_front << endl;
-      cout << "Speed limit v: " << this->target_speed << endl;
+      if (VERBOSE)
+      {
+        cout << "Max acceleration v: " << max_velocity_accel_limit << endl;
+        cout << "Max deceleration v: " << min_velocity_accel_limit << endl;
+        cout << "Max in front v: " << max_velocity_in_front << endl;
+        cout << "Speed limit v: " << this->target_speed << endl;
+      }
 
 
       if (max_velocity_in_front > max_velocity_accel_limit)
@@ -374,17 +446,23 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
 
       new_velocity = std::min(max_velocity_in_front, speed_limit_v);
 
-      cout << "Chosen v: " << new_velocity << endl;
+      if (VERBOSE)
+      {
+        cout << "Chosen v: " << new_velocity << endl;
+      }
 
     }
   }
   else
   {
 
-    cout << "No vehicle in front" << endl;
+    if (VERBOSE)
+    {
+      cout << "No vehicle in front" << endl;
 
-    cout << "Max acceleration v: " << max_velocity_accel_limit << endl;
-    cout << "Speed limit v: " << this->target_speed << endl;
+      cout << "Max acceleration v: " << max_velocity_accel_limit << endl;
+      cout << "Speed limit v: " << this->target_speed << endl;
+    }
 
     double speed_limit_v = this->target_speed;
     if (speed_limit_v > max_velocity_accel_limit)
@@ -398,7 +476,11 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
 
     new_velocity = speed_limit_v;
 
-    cout << "Chosen v: " << new_velocity << endl;
+    if (VERBOSE)
+    {
+      cout << "Chosen v: " << new_velocity << endl;
+    }
+
   }
 
   new_accel = (new_velocity - this->start_state.s[1]) / delta_t;
@@ -411,7 +493,10 @@ vector<double> Vehicle::get_kinematics(vector<Vehicle> &vehicles, int new_lane)
 vector<Vehicle> Vehicle::keep_lane_trajectory(vector<Vehicle> &vehicles)
 {
 
-cout << "State: " << "KL" << endl;
+if (VERBOSE)
+{
+  cout << "State: " << "KL" << endl;
+}
 
   vector<Vehicle> trajectory;
   vector<double> kinematics = get_kinematics(vehicles, this->lane);
@@ -428,7 +513,10 @@ vector<Vehicle> Vehicle::prep_lane_change_trajectory(string prep_state,
                                                      vector<Vehicle> &vehicles)
 {
 
-  cout << "State: " << prep_state << endl;
+  if (VERBOSE)
+  {
+    cout << "State: " << prep_state << endl;
+  }
 
   double new_position;
   double new_velocity;
@@ -446,8 +534,12 @@ vector<Vehicle> Vehicle::prep_lane_change_trajectory(string prep_state,
     if (next_lane_vehicle.start_state.s[0] >= (this->start_state.s[0] - buffer)
         && next_lane_vehicle.start_state.s[0] <= (this->start_state.s[0] + buffer)
         && next_lane_vehicle.lane == new_lane)
+    {
+
+      if (VERBOSE)
       {
-      cout << "Prep lane change unavailable" << endl;
+        cout << "Prep lane change unavailable" << endl;
+      }
 
       return trajectory;
     }
@@ -460,8 +552,11 @@ vector<Vehicle> Vehicle::prep_lane_change_trajectory(string prep_state,
   {
     curr_lane_v = vehicle_ahead.start_state.s[1];
 
-    cout << "Vehicle ahead" << endl;
-    cout << "Vehicle ahead speed: " << curr_lane_v << endl;
+    if (VERBOSE)
+    {
+      cout << "Vehicle ahead" << endl;
+      cout << "Vehicle ahead speed: " << curr_lane_v << endl;
+    }
   }
 
   Vehicle closest_vehicle;
@@ -471,71 +566,113 @@ vector<Vehicle> Vehicle::prep_lane_change_trajectory(string prep_state,
   {
     next_lane_v = closest_vehicle.start_state.s[1];
 
-    cout << "Found vehicle in next lane" << endl;
-    cout << "Next lane vehicle speed: " << next_lane_v << endl;
+    if (VERBOSE)
+    {
+      cout << "Found vehicle in next lane" << endl;
+      cout << "Next lane vehicle speed: " << next_lane_v << endl;
+    }
   }
+
+  double delta_t = this->project_size * DT;
+  double max_velocity_accel_limit = this->start_state.s[1]
+                                    + MAX_ACCELERATION * delta_t;
+  double min_velocity_accel_limit = this->start_state.s[1]
+                                    - MAX_ACCELERATION * delta_t;
+
+  if (VERBOSE)
+  {
+    cout << "Max acceleration velocity: " << max_velocity_accel_limit << endl;
+    cout << "Min acceleration velocity: " << min_velocity_accel_limit << endl;
+
+    cout << "Speed limit: " << this->target_speed << endl;
+  }
+
+  double speed_limit_v = this->target_speed;
+  if (speed_limit_v > max_velocity_accel_limit)
+  {
+    speed_limit_v = max_velocity_accel_limit;
+  }
+  else if (speed_limit_v < min_velocity_accel_limit)
+  {
+    speed_limit_v = min_velocity_accel_limit;
+  }
+
+  vector<double> curr_lane_new_kinematics = get_kinematics(vehicles, this->lane);
 
   if (next_lane_v >= curr_lane_v)
   {
-    cout << "Next lane vehicle faster or same speed" << endl;
 
-    vector<double> curr_lane_new_kinematics = get_kinematics(vehicles, this->lane);
-    new_position = curr_lane_new_kinematics[0];
-    new_velocity = curr_lane_new_kinematics[1];
-    new_accel = curr_lane_new_kinematics[2];
+    if (VERBOSE)
+    {
+      cout << "Next lane vehicle faster or same speed" << endl;
+    }
+
+    if (next_lane_v >= curr_lane_new_kinematics[1])
+    {
+      new_position = curr_lane_new_kinematics[0];
+      new_velocity = curr_lane_new_kinematics[1];
+      new_accel = curr_lane_new_kinematics[2];
+    }
+    else
+    {
+      if (next_lane_v > max_velocity_accel_limit)
+      {
+        next_lane_v = max_velocity_accel_limit;
+      }
+      else if (next_lane_v < min_velocity_accel_limit)
+      {
+        next_lane_v = min_velocity_accel_limit;
+      }
+
+      new_velocity = std::min(next_lane_v, speed_limit_v);
+      new_accel = (new_velocity - this->start_state.s[1]) / delta_t;
+      new_position = this->start_state.s[0] + this->start_state.s[1] * delta_t
+                     + new_accel * delta_t * delta_t / 2.0;
+    }
+
     trajectory.push_back(Vehicle(new_position, new_velocity, new_accel,
                                  lane_to_frenet(this->lane),
                                  this->lane, prep_state));
   }
   else if (next_lane_v < curr_lane_v)
   {
-    cout << "Next lane vehicle slower" << endl;
 
-    double delta_t = this->project_size * DT;
-    double max_velocity_accel_limit = this->start_state.s[1]
-                                      + MAX_ACCELERATION * delta_t;
-    double min_velocity_accel_limit = this->start_state.s[1]
-                                      - MAX_ACCELERATION * delta_t;
-
-    cout << "Max acceleration velocity: " << max_velocity_accel_limit << endl;
-    cout << "Min acceleration velocity: " << min_velocity_accel_limit << endl;
-
-    if (next_lane_v > max_velocity_accel_limit)
+    if (VERBOSE)
     {
-      next_lane_v = max_velocity_accel_limit;
-    }
-    else if (next_lane_v < min_velocity_accel_limit)
-    {
-      next_lane_v = min_velocity_accel_limit;
-    }
-
-    cout << "Speed limit: " << this->target_speed << endl;
-
-    double speed_limit_v = this->target_speed;
-    if (speed_limit_v > max_velocity_accel_limit)
-    {
-      speed_limit_v = max_velocity_accel_limit;
-    }
-    else if (speed_limit_v < min_velocity_accel_limit)
-    {
-      speed_limit_v = min_velocity_accel_limit;
+      cout << "Next lane vehicle slower" << endl;
     }
 
     Vehicle vehicle_behind;
     if (get_vehicle_behind(vehicles, this->lane, vehicle_behind))
     {
-      cout << "Vehicle behind" << endl;
 
-      cout << "Vehicle behind position: " << vehicle_behind.start_state.s[0] << endl;
-      cout << "Vehicle behind velocity: " << vehicle_behind.start_state.s[1] << endl;
-      cout << "Vehicle behind acceleration: " << vehicle_behind.start_state.s[2] << endl;
+      if (VERBOSE)
+      {
+        cout << "Vehicle behind" << endl;
+      }
 
-      cout << "Ego vehicle position: " << this->start_state.s[0] << endl;
-      cout << "Ego vehicle velocity: " << this->start_state.s[1] << endl;
-      cout << "Ego vehicle acceleration: " << this->start_state.s[2] << endl;
+      if (next_lane_v > max_velocity_accel_limit)
+      {
+        next_lane_v = max_velocity_accel_limit;
+      }
+      else if (next_lane_v < min_velocity_accel_limit)
+      {
+        next_lane_v = min_velocity_accel_limit;
+      }
 
-      cout << "Buffer: " << this->buffer << endl;
-      cout << "Delta t: " << delta_t << endl;
+      if (VERBOSE)
+      {
+        cout << "Vehicle behind position: " << vehicle_behind.start_state.s[0] << endl;
+        cout << "Vehicle behind velocity: " << vehicle_behind.start_state.s[1] << endl;
+        cout << "Vehicle behind acceleration: " << vehicle_behind.start_state.s[2] << endl;
+
+        cout << "Ego vehicle position: " << this->start_state.s[0] << endl;
+        cout << "Ego vehicle velocity: " << this->start_state.s[1] << endl;
+        cout << "Ego vehicle acceleration: " << this->start_state.s[2] << endl;
+
+        cout << "Buffer: " << this->buffer << endl;
+        cout << "Delta t: " << delta_t << endl;
+      }
 
       double min_accel_behind = 2 * (vehicle_behind.start_state.s[0]
                                      + vehicle_behind.start_state.s[1] * delta_t
@@ -545,7 +682,15 @@ vector<Vehicle> Vehicle::prep_lane_change_trajectory(string prep_state,
                                      / (delta_t * delta_t);
       double min_velocity_behind = this->start_state.s[1] + min_accel_behind * delta_t;
 
-      cout << "Min velocity behind: " << min_velocity_behind << endl;
+      if (VERBOSE)
+      {
+        cout << "Min velocity behind: " << min_velocity_behind << endl;
+      }
+
+      if (min_velocity_behind > curr_lane_new_kinematics[1])
+      {
+        min_velocity_behind = curr_lane_new_kinematics[1];
+      }
 
       if (min_velocity_behind > max_velocity_accel_limit)
       {
@@ -559,15 +704,27 @@ vector<Vehicle> Vehicle::prep_lane_change_trajectory(string prep_state,
       new_velocity = std::min(std::max(min_velocity_behind, next_lane_v),
                               speed_limit_v);
 
-      cout << "Chosen velocity: " << new_velocity << endl;
+      if (VERBOSE)
+      {
+        cout << "Chosen velocity: " << new_velocity << endl;
+      }
+
     }
     else
     {
-      cout << "No vehicle behind" << endl;
+
+      if (VERBOSE)
+      {
+        cout << "No vehicle behind" << endl;
+      }
 
       new_velocity = std::min(next_lane_v, speed_limit_v);
 
-      cout << "Chosen velocity: " << new_velocity << endl;
+      if (VERBOSE)
+      {
+        cout << "Chosen velocity: " << new_velocity << endl;
+      }
+
     }
     new_accel = (new_velocity - this->start_state.s[1]) / delta_t;
     new_position = this->start_state.s[0] + this->start_state.s[1] * delta_t
@@ -584,7 +741,10 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string lane_change_state,
                                                vector<Vehicle> &vehicles)
 {
 
-  cout << "State: " << lane_change_state << endl;
+  if (VERBOSE)
+  {
+    cout << "State: " << lane_change_state << endl;
+  }
 
   int new_lane = this->lane + lane_direction[lane_change_state];
   vector<Vehicle> trajectory;
@@ -599,7 +759,7 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string lane_change_state,
 
       double d_diff = fabs(next_lane_vehicle.start_state.d[0]
                            - this->start_state.d[0]);
-      double comp_d = 2*(LANE_WIDTH/2.0 - 0.2);
+      double comp_d = 2*(LANE_WIDTH/2.0 - DELTA_D_KEEP_LANE);
       int lane_diff = fabs(this->lane - next_lane_vehicle.lane);
       if (next_lane_vehicle.lane != new_lane && next_lane_vehicle.lane != this->lane
           && next_lane_vehicle.start_state.s[0] >= (this->start_state.s[0] - buffer)
@@ -607,9 +767,12 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string lane_change_state,
           && d_diff <= comp_d + (lane_diff - 1)*LANE_WIDTH)
       {
 
-        cout << "Vehicle in buffer region in non-intended lane" << endl;
-        cout << "Vehicle preparing lane change to intended lane" << endl;
-        cout << "Lane change unavailable" << endl;
+        if (VERBOSE)
+        {
+          cout << "Vehicle in buffer region in non-intended lane" << endl;
+          cout << "Vehicle preparing lane change to intended lane" << endl;
+          cout << "Lane change unavailable" << endl;
+        }
 
         return trajectory;
       }
@@ -619,15 +782,37 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string lane_change_state,
           && next_lane_vehicle.lane == new_lane)
       {
 
-        cout << "Vehicle in buffer region in intended lane" << endl;
-        cout << "Lane change unavailable" << endl;
+        if (VERBOSE)
+        {
+          cout << "Vehicle in buffer region in intended lane" << endl;
+          cout << "Lane change unavailable" << endl;
+        }
 
         return trajectory;
       }
     }
+
+    Vehicle vehicle_behind;
+    if (get_vehicle_behind(vehicles, new_lane, vehicle_behind))
+    {
+      if (vehicle_behind.start_state.s[0] > (this->start_state.s[0] - 2*buffer)
+          && vehicle_behind.start_state.s[1] > this->start_state.s[1])
+      {
+        if (VERBOSE)
+        {
+          cout << "Vehicle behind in intended lane moving too fast" << endl;
+        }
+
+        return trajectory;
+      }
+    }
+
   }
 
-  cout << "Lane change available" << endl;
+  if (VERBOSE)
+  {
+    cout << "Lane change available" << endl;
+  }
 
   vector<double> kinematics = get_kinematics(vehicles, new_lane);
   trajectory.push_back(Vehicle(kinematics[0], kinematics[1], kinematics[2],
