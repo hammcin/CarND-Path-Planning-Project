@@ -1,145 +1,25 @@
-# CarND-Path-Planning-Project
-Self-Driving Car Engineer Nanodegree Program
-   
-### Simulator.
-You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).  
-
-To run the simulator on Mac/Linux, first make the binary file executable with the following command:
-```shell
-sudo chmod u+x {simulator_file_name}
-```
+# Path Planning Project
 
 ### Goals
+
 In this project your goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. You will be provided the car's localization and sensor fusion data, there is also a sparse map list of waypoints around the highway. The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 10 m/s^3.
 
-#### The map of the highway is in data/highway_map.txt
-Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
+### Behavior Planning
 
-The highway's waypoints loop around so the frenet s value, distance along the road, goes from 0 to 6945.554.
+The behavior planner was implemented using a Vehicle class (vehicle.h and vehicle.cpp).  A vehicle object was instantiated for the ego vehicle (main.cpp, lines 179-242) and each other vehicle on the same side of the road as the ego vehicle (main.cpp, lines 139-177), such that each vehicle objected was initialized with the correct position, velocity, and acceleration.  Vehicles other than the ego vehicle were assumed to have 0 acceleration.
 
-## Basic Build Instructions
+The behavior planner was implemented using a finite state machine.  The finite state machine consisted of the following states: keep lane (KL), prepare lane change right/left (PLCR/PLCL), and lane change (LCR/LCL) (vehicle.cpp, Vehicle::successor_states).  The ego vehicle could transition from KL either back to KL or to PLCL/PLCR.  Transitions from PLCL to KL, PLCL, or LCL were possible (likewise for PLCR and LCR).  Additionally, transitions from LCL back to LCL and to KL were possible (likewise for LCR).  The ego vehicle could not transition out of LCL/LCR until it had finished the lane change as determined by the distance in the frenet d coordinate of the ego vehicle from the center of the lane the ego vehicle was changing into (vehicle.cpp, lines 164-187).  Additionally, the ego vehicle could not transition from PLCL/PLCR to LCL/LCR until the speed of the ego vehicle matched the speed of the vehicle in front of the ego vehicle in the next lane, if possible (vehicle.cpp, lines 204-292).
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./path_planning`.
+When choosing the next state for the ego vehicle, a trajectory consisting of a final position, velocity, and acceleration is generated for each potential state (vehicle.cpp, Vehicle::choose_next_state).  The new trajectory is generated such that the vehicle will travel near the speed limit (47.5 miles per hour) unless prevented to do so by the vehicle in front of it (vehicle.cpp, Vehicle::get_kinematics).  For PLCL/PLCR trajectories, the ego vehicle will attempt to match the speed of the vehicle in front of it in the next lane if possible (vehicle.cpp, Vehicle::prep_lane_change_trajectory).  If another vehicle is blocking the ego vehicle from performing a lane change, no cost will be calculated for the PLCL/PLCR state (vehicle.cpp, lines 528-546).  For LCL/LCR trajectories, if another vehicle is attempting to make a lane change at the same time as the ego vehicle, a cost will not be calculated for the trajectory (vehicle.cpp, lines 764-778).  Alternatively, if a vehicle in the intended lane is blocking a lane change, a cost will not be calculated for the LCL/LCR trajectory (vehicle.cpp, lines 780-792).  Also, if there is a vehicle behind the ego vehicle in the intended lane that is traveling faster than the ego vehicle, a cost will not be calculated for the LCL/LCR trajectory (vehicle.cpp, lines 795-808).
 
-Here is the data provided from the Simulator to the C++ Program
+### Cost Functions
 
-#### Main car's localization Data (No Noise)
+The cost for each trajectory is calculated as a weighted sum of two cost functions, a cost function that penalizes the ego vehicle for being outside the middle lane (weight: 0.15) (cost.cpp, goal_lane_cost, lines 17-36) and a cost function that penalizes the ego vehicle for traveling at a slower speed than the target speed (47.5 mph) (weight: 0.85) (cost.cpp, inefficiency_cost, lines 38-73).
 
-["x"] The car's x position in map coordinates
+### Trajectory Generation
 
-["y"] The car's y position in map coordinates
+Trajectories for the ego vehicle were generated using a spline.  A spline was fit to five points on each iteration.  The first two points were taken from the ego vehicle's previous path (main.cpp, lines 302-315).  If a previous path was not available, and only the ego vehicle's present location was available, point was projected back using the ego vehicle's current velocity and orientation (main.cpp, lines 288-295).  The next three points were projected out 30m, 60m, and 90 meters out from the ego vehicle's current position in the frenet s coordinate (main.cpp, lines 321-340).  The d coordinate of these last three points, was chosen to match the center of the lane chosen by the behavior planner. To avoid the problem of generating a trajectory where a given global x coordinate was associated with multiple global y coordinates, spline calculations were performed in the ego vehicle's reference frame (main.cpp, lines 345-358 and lines 399-407).  On each iteration, a trajectory consisting of 50 points was generated.  To generate these points, points from the spline were appended to the ego vehicle's previous path (main.cpp, lines 372-376).  New points were generated such that the vehicle would have a velocity as chosen by the behavior planner (main.cpp, lines 381-397).  Additionally, the trajectory was generated with a constant acceleration on each iteration.
 
-["s"] The car's s position in frenet coordinates
+### Autonomous Driving
 
-["d"] The car's d position in frenet coordinates
-
-["yaw"] The car's yaw angle in the map
-
-["speed"] The car's speed in MPH
-
-#### Previous path data given to the Planner
-
-//Note: Return the previous list but with processed points removed, can be a nice tool to show how far along
-the path has processed since last time. 
-
-["previous_path_x"] The previous list of x points previously given to the simulator
-
-["previous_path_y"] The previous list of y points previously given to the simulator
-
-#### Previous path's end s and d values 
-
-["end_path_s"] The previous list's last point's frenet s value
-
-["end_path_d"] The previous list's last point's frenet d value
-
-#### Sensor Fusion Data, a list of all other car's attributes on the same side of the road. (No Noise)
-
-["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates. 
-
-## Details
-
-1. The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
-
-2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
-
-## Tips
-
-A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
-
----
-
-## Dependencies
-
-* cmake >= 3.5
-  * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `install-mac.sh` or `install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets 
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
-
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+Here's a [link to my video result](./path_planning_project_short.mp4).
